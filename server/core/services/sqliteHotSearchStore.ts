@@ -71,7 +71,42 @@ export class SqliteHotSearchStore implements IHotSearchStore {
       CREATE INDEX IF NOT EXISTS idx_last_searched ON hot_searches(last_searched_at DESC);
     `);
 
+    // 迁移：从 JSON 文件导入历史数据（仅首次）
+    await this.migrateFromJson();
+
     console.log("[SqliteHotSearchStore] ✅ SQLite 存储已初始化");
+  }
+
+  private async migrateFromJson(): Promise<void> {
+    // 测试模式（自定义 dbPath）不迁移
+    if (this.dbPath !== DEFAULT_DB_PATH) return;
+    const JSON_PATH = "./data/hot-searches.json";
+    try {
+      const { existsSync, readFileSync } = await import("fs");
+      if (!existsSync(JSON_PATH)) return;
+
+      const raw = readFileSync(JSON_PATH, "utf-8");
+      const data = JSON.parse(raw);
+      if (!data?.items?.length) return;
+
+      const count = this.db.prepare("SELECT COUNT(*) as c FROM hot_searches").get().c;
+      if (count > 0) return; // 已有数据，跳过迁移
+
+      const insert = this.db.prepare("INSERT OR IGNORE INTO hot_searches (term, score, last_searched_at, created_at) VALUES (?, ?, ?, ?)");
+      const insertMany = this.db.transaction((items: any[]) => {
+        for (const item of items) {
+          const normalized = normalize(item.term);
+          if (normalized && !isForbidden(normalized)) {
+            insert.run(normalized, item.score || 1, item.lastSearched || Date.now(), item.createdAt || Date.now());
+          }
+        }
+      });
+
+      insertMany(data.items);
+      console.log(`[SqliteHotSearchStore] ✅ 从 JSON 迁移了 ${data.items.length} 条热搜数据`);
+    } catch {
+      // JSON 文件不存在或解析失败，静默跳过
+    }
   }
 
   private async waitForInit(): Promise<void> {
