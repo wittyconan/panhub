@@ -51,7 +51,7 @@ jobs:
           script: |
             IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest"
             CONTAINER="${{ github.event.repository.name }}"
-            ENV_FILE="/opt/1panel/apps/openresty/openresty/www/sites/shenzjd.com/index/.env"
+            ENV_FILE="/opt/1panel/apps/openresty/openresty/www/sites/panhub.shenzjd.com/index/.env"
 
             echo "=== 登录 GHCR ==="
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
