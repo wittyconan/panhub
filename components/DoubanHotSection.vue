@@ -8,6 +8,7 @@
         v-for="cat in availableCategories"
         :key="cat.id"
         :class="['tab-button', { 'is-active': selectedCategoryId === cat.id }]"
+        data-theme-part="tab-button"
         :aria-selected="selectedCategoryId === cat.id"
         role="tab"
         @click="selectCategory(cat.id)"
@@ -25,6 +26,7 @@
           v-for="i in 10"
           :key="`skeleton-${i}`"
           class="skeleton-card"
+          data-theme-part="skeleton-card"
           :style="{ animationDelay: `${i * 0.05}s` }"
         >
           <div class="skeleton-cover">
@@ -55,6 +57,7 @@
               v-for="item in items"
               :key="item.id || item.title"
               class="movie-card"
+              data-theme-part="movie-card"
               :aria-label="`搜索 ${extractTerm(item.title)}`"
               @click="onItemClick(item.title)"
             >
@@ -321,7 +324,7 @@ defineExpose({ init, refresh });
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary, #6b7280);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--bg-surface);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-light, #e5e7eb);
   border-radius: 10px;
@@ -381,7 +384,7 @@ defineExpose({ init, refresh });
 .skeleton-card {
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--bg-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-light, #e5e7eb);
   border-radius: 12px;
@@ -391,7 +394,7 @@ defineExpose({ init, refresh });
 
 .skeleton-cover {
   aspect-ratio: 2 / 3;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--bg-skeleton) 25%, #e0e0e0 50%, var(--bg-skeleton) 75%);
   background-size: 200% 100%;
   position: relative;
   overflow: hidden;
@@ -406,7 +409,7 @@ defineExpose({ init, refresh });
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.6) 50%,
+    var(--bg-skeleton-shine) 50%,
     transparent 100%
   );
   transform: translateX(-100%);
@@ -474,7 +477,7 @@ defineExpose({ init, refresh });
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--bg-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-light, #e5e7eb);
   border-radius: 12px;
@@ -674,101 +677,6 @@ defineExpose({ init, refresh });
 
   .card-title {
     font-size: 13px;
-  }
-}
-
-/* 深色模式 */
-@media (prefers-color-scheme: dark) {
-  .tab-button {
-    background: rgba(22, 27, 34, 0.6);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .tab-button::before {
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.08) 0%, rgba(251, 191, 36, 0.04) 100%);
-  }
-
-  .tab-button:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-  }
-
-  .tab-button.is-active {
-    background: rgba(13, 148, 136, 0.12);
-    border-color: var(--primary);
-    color: var(--primary);
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
-  }
-
-  .skeleton-card {
-    background: rgba(22, 27, 34, 0.7);
-    border-color: var(--border-light);
-  }
-
-  .skeleton-cover {
-    background: linear-gradient(90deg, #161b22 25%, #21262d 50%, #161b22 75%);
-    background-size: 200% 100%;
-  }
-
-  .skeleton-shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.04) 50%,
-      transparent 100%
-    );
-  }
-
-  .skeleton-title {
-    background: linear-gradient(90deg, #21262d 25%, #30363d 50%, #21262d 75%);
-    background-size: 200% 100%;
-  }
-
-  .skeleton-desc {
-    background: linear-gradient(90deg, #1a1f26 25%, #262c34 50%, #1a1f26 75%);
-    background-size: 200% 100%;
-  }
-
-  .movie-card {
-    background: rgba(22, 27, 34, 0.7);
-    border-color: var(--border-light);
-  }
-
-  .card-cover {
-    background: linear-gradient(135deg, #161b22 0%, #21262d 100%);
-  }
-
-  .cover-placeholder {
-    background: rgba(13, 148, 136, 0.08);
-  }
-
-  .movie-card:hover {
-    box-shadow: 0 8px 20px rgba(13, 148, 136, 0.15);
-  }
-
-  .card-info {
-    background: transparent;
-  }
-
-  .card-title {
-    color: var(--text-primary);
-  }
-
-  .card-desc {
-    color: var(--text-tertiary);
-  }
-
-  .loading-more {
-    color: var(--text-secondary);
-  }
-
-  .spinner-dots span {
-    background: var(--primary);
-  }
-
-  .end-message {
-    color: var(--text-tertiary);
   }
 }
 

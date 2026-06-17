@@ -2,13 +2,14 @@
   <div
     v-if="open"
     class="drawer-mask"
+    data-theme-part="drawer-mask"
     @click.self="
       () => {
         emitSave();
         $emit('update:open', false);
       }
     ">
-    <div class="drawer" role="dialog" aria-modal="true" aria-label="搜索设置">
+    <div class="drawer" data-theme-part="drawer" role="dialog" aria-modal="true" aria-label="搜索设置">
       <header class="drawer__header">
         <div>
           <strong>搜索设置</strong>
@@ -138,6 +139,8 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onBeforeUnmount } from "vue";
+
 interface UserSettings {
   enabledTgChannels: string[];
   enabledPlugins: string[];
@@ -246,6 +249,21 @@ function setActiveSectionByScroll() {
 function onDrawerScroll() {
   setActiveSectionByScroll();
 }
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === "Escape" && props.open) {
+    emitSave();
+    emit("update:open", false);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener("keydown", onKeyDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onKeyDown);
+});
 </script>
 
 <style scoped>
@@ -263,7 +281,7 @@ function onDrawerScroll() {
 .drawer {
   width: min(460px, 92vw);
   height: 100vh;
-  background: rgba(255, 253, 248, 0.96);
+  background: var(--bg-glass-strong);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.2);
@@ -319,7 +337,7 @@ function onDrawerScroll() {
   padding: 8px 6px;
   border-radius: 9px;
   border: 1px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--bg-input);
   color: var(--text-secondary);
   font-size: 11px;
   text-align: center;
@@ -346,8 +364,8 @@ function onDrawerScroll() {
 }
 
 .drawer__section {
-  background: rgba(255, 255, 255, 0.42);
-  border: 1px solid rgba(212, 199, 171, 0.6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
   border-radius: 12px;
   padding: 10px;
   margin-bottom: 10px;
@@ -498,7 +516,7 @@ function onDrawerScroll() {
 .btn--subtle {
   color: var(--text-secondary);
   border-color: var(--border-medium);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-input);
 }
 
 .btn--subtle:hover {
@@ -545,129 +563,6 @@ function onDrawerScroll() {
 
   .drawer__footer {
     justify-content: center;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .drawer-mask {
-    background: rgba(0, 0, 0, 0.6);
-  }
-
-  .drawer {
-    background: rgba(13, 17, 23, 0.96);
-    border-left-color: var(--border-light);
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
-  }
-
-  .drawer__header {
-    border-bottom-color: var(--border-light);
-  }
-
-  .drawer__header strong {
-    color: var(--text-primary);
-  }
-
-  .header-subtitle {
-    color: var(--text-tertiary);
-  }
-
-  .nav-link {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .nav-link:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
-  }
-
-  .nav-link.active {
-    border-color: rgba(45, 212, 191, 0.35);
-    background: rgba(13, 148, 136, 0.15);
-    color: var(--primary);
-  }
-
-  .drawer__section {
-    background: rgba(22, 27, 34, 0.5);
-    border-color: var(--border-light);
-  }
-
-  .section__title strong {
-    color: var(--text-primary);
-  }
-
-  .plugin-item {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-  }
-
-  .plugin-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-  }
-
-  .plugin-item input[type="checkbox"] {
-    accent-color: var(--primary);
-  }
-
-  .plugin-item span {
-    color: var(--text-secondary);
-  }
-
-  .label {
-    color: var(--text-secondary);
-  }
-
-  .input {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-  }
-
-  .input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
-  }
-
-  .input::placeholder {
-    color: var(--text-tertiary);
-  }
-
-  .hint {
-    color: var(--text-tertiary);
-  }
-
-  .btn {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-  }
-
-  .btn:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-  }
-
-  .btn--close {
-    color: var(--text-secondary);
-  }
-
-  .btn--subtle {
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    border-color: var(--border-medium);
-  }
-
-  .btn--subtle:hover {
-    color: var(--primary);
-    border-color: rgba(45, 212, 191, 0.35);
-    background: rgba(13, 148, 136, 0.1);
-  }
-
-  .drawer__footer {
-    border-top-color: var(--border-light);
   }
 }
 

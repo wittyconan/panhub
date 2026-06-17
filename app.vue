@@ -15,6 +15,25 @@
           <span class="brand-text">PanHub</span>
         </NuxtLink>
         <div class="nav-actions">
+          <!-- 暗色模式切换 -->
+          <ClientOnly>
+            <button class="btn-icon" type="button" @click="toggleDark" :aria-label="isDark ? '切换到亮色模式' : '切换到暗色模式'" :title="isDark ? '亮色模式' : '暗色模式'">
+              <svg v-if="!isDark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            </button>
+          </ClientOnly>
           <!-- GitHub 链接 -->
           <a
             href="https://github.com/wu529778790/panhub.shenzjd.com"
@@ -73,8 +92,19 @@
 <script setup lang="ts">
 import { ALL_PLUGIN_NAMES } from "./config/plugins";
 import channelsConfig from "~/config/channels.json";
+// 暗色模式：阻塞脚本设置 class + CSS 文件引入
+useHead({
+  link: [{ rel: "stylesheet", href: "/css/dark-mode.css" }],
+  script: [
+    {
+      innerHTML: `(function(){var s=localStorage.getItem('panhub:dark-mode');var d=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')})();`,
+    },
+  ],
+});
 
 const { settings, loadSettings, saveSettings, resetToDefault } = useSettings();
+const { toast, showToast } = useToast();
+const { isDark, toggle: toggleDark, init: initDarkMode } = useDarkMode();
 const auth = useAuth();
 const openSettings = ref(false);
 const showPasswordGate = ref(false);
@@ -102,21 +132,6 @@ async function onUnlock(password: string) {
 
 provide("requestUnlock", requestUnlock);
 
-// Toast 状态
-const toast = ref({
-  show: false,
-  message: "",
-  type: "info" as "info" | "success" | "error",
-});
-
-// 显示 Toast
-function showToast(message: string, type: "info" | "success" | "error" = "info") {
-  toast.value = { show: true, message, type };
-  setTimeout(() => {
-    toast.value.show = false;
-  }, 3000);
-}
-
 // 所有可用的 TG 频道（用于设置面板）
 const allTgChannels = computed(() => {
   const configChannels = (useRuntimeConfig().public as any)?.tgDefaultChannels;
@@ -133,147 +148,14 @@ watch(() => settings.value, (newVal, oldVal) => {
 }, { deep: true });
 
 onMounted(() => {
+  initDarkMode();
   loadSettings();
   auth.fetchStatus();
 });
-
-// 暴露给子组件使用
-provide('showToast', showToast);
 </script>
 
 <style>
-/* 全局样式重置和现代化设计系统 */
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Noto+Sans+SC:wght@400;500;700;900&family=Syne:wght@600;700;800&display=swap");
-
-:root {
-  --primary: #0f766e;
-  --primary-dark: #115e59;
-  --secondary: #f59e0b;
-  --success: #10b981;
-  --warning: #d97706;
-  --error: #ef4444;
-
-  --bg-primary: #fffdf8;
-  --bg-secondary: #f7f3ea;
-  --bg-glass: rgba(255, 253, 248, 0.86);
-
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
-  --text-tertiary: #9ca3af;
-
-  --border-light: #e5dfd0;
-  --border-medium: #d4c7ab;
-
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 350ms ease;
-}
-
-/* 基础重置 */
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: "Manrope", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: radial-gradient(circle at 12% -10%, #fff3d9 0%, transparent 42%),
-    radial-gradient(circle at 90% 8%, #d9f7f3 0%, transparent 35%),
-    #fffdf8;
-  color: var(--text-primary);
-
-  /* iOS Safari兼容性 */
-  -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-medium);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
-
-/* 输入框基础样式 */
-input[type="text"],
-input[type="search"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-textarea,
-select {
-  -webkit-appearance: none;
-  -webkit-border-radius: 0;
-  border-radius: 0;
-  -webkit-text-size-adjust: 100%;
-  font-family: inherit;
-}
-
-/* 按钮基础样式 */
-button {
-  -webkit-appearance: none;
-  -webkit-tap-highlight-color: transparent;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-/* iOS Safari触摸区域优化 */
-@media (max-width: 640px) {
-  button,
-  input,
-  select,
-  textarea {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-/* 动画定义 */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes blobFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
+@import '~/assets/css/global.css';
 </style>
 
 <style scoped>
@@ -338,7 +220,7 @@ button {
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid var(--border-glass);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -395,7 +277,7 @@ button {
   width: 40px;
   height: 40px;
   border: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--bg-btn);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -404,11 +286,11 @@ button {
   transition: background-color var(--transition-fast), color var(--transition-fast),
     transform var(--transition-fast), box-shadow var(--transition-fast);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-glass);
 }
 
 .btn-icon:hover {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-btn-hover);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
@@ -428,7 +310,7 @@ button {
 
 .github-btn:hover {
   color: var(--primary);
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-btn-hover);
 }
 
 .github-btn svg {
@@ -514,112 +396,6 @@ button {
 
   .blob {
     filter: blur(40px);
-  }
-}
-
-/* 深色模式 - Obsidian Tide 主题 */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #0d1117;
-    --bg-secondary: #161b22;
-    --bg-glass: rgba(13, 17, 23, 0.82);
-    --text-primary: #e6edf3;
-    --text-secondary: #a1aab5;
-    --text-tertiary: #7d8794;
-    --border-light: #21262d;
-    --border-medium: #30363d;
-    --primary: #2dd4bf;
-    --primary-dark: #14b8a6;
-    --secondary: #fbbf24;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-  }
-
-  body {
-    background:
-      radial-gradient(ellipse at 10% 0%, rgba(13, 148, 136, 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse at 85% 5%, rgba(217, 119, 6, 0.08) 0%, transparent 40%),
-      #0a0e14;
-  }
-
-  .blob {
-    opacity: 0.12;
-  }
-
-  .blob-1 {
-    background: linear-gradient(135deg, #0d9488, #2dd4bf);
-  }
-
-  .blob-2 {
-    background: linear-gradient(135deg, #d97706, #fbbf24);
-  }
-
-  .blob-3 {
-    background: linear-gradient(135deg, #0891b2, #2dd4bf);
-  }
-
-  .header {
-    background: rgba(13, 17, 23, 0.78);
-    border-bottom: 1px solid var(--border-light);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
-  }
-
-  .brand-text {
-    background: linear-gradient(135deg, #2dd4bf, #fbbf24);
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
-  .btn-icon {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .btn-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .github-btn {
-    color: var(--text-tertiary);
-  }
-
-  .github-btn:hover {
-    color: var(--text-primary);
-  }
-
-  .toast {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
-
-  .toast.info {
-    color: var(--primary);
-    border-left-color: var(--primary);
-  }
-
-  .toast.success {
-    color: #34d399;
-    border-left-color: #34d399;
-  }
-
-  .toast.error {
-    color: #f87171;
-    border-left-color: #f87171;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--border-medium);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
   }
 }
 

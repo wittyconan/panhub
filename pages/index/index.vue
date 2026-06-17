@@ -23,7 +23,9 @@
         <div class="hero-shape" aria-hidden="true" />
       </header>
       <aside class="hero-aside">
-        <HotSearchSection ref="hotSearchRef" :on-search="quickSearch" />
+        <ErrorBoundary message="热搜加载失败">
+          <HotSearchSection ref="hotSearchRef" :on-search="quickSearch" />
+        </ErrorBoundary>
       </aside>
     </div>
 
@@ -66,14 +68,14 @@
           <button
             :class="['filter-pill', { active: filterPlatform === 'all' }]"
             @click="filterPlatform = 'all'">
-            全部
+            全部 ({{ searchState.total }})
           </button>
           <button
             v-for="p in platforms"
             :key="p"
             :class="['filter-pill', { active: filterPlatform === p }]"
             @click="filterPlatform = p">
-            {{ platformName(p) }}
+            {{ platformName(p) }} ({{ searchState.merged[p]?.length || 0 }})
           </button>
         </div>
 
@@ -114,6 +116,16 @@
         <div class="empty-icon">🔍</div>
         <h3>未找到相关资源</h3>
         <p>试试其他关键词，或检查设置中的搜索来源是否已启用</p>
+        <div v-if="hotTerms.length > 0" class="empty-suggestions">
+          <span class="empty-suggestions__label">大家都在搜：</span>
+          <button
+            v-for="term in hotTerms.slice(0, 5)"
+            :key="term"
+            class="empty-suggestions__tag"
+            @click="quickSearch(term)">
+            {{ term }}
+          </button>
+        </div>
       </div>
     </section>
 
@@ -125,7 +137,9 @@
 
     <!-- 豆瓣电影新片榜 - 搜索时隐藏 -->
     <section v-if="!searched" class="douban-hot-section">
-      <DoubanHotSection ref="doubanHotRef" :on-search="quickSearch" />
+      <ErrorBoundary message="豆瓣热榜加载失败">
+        <DoubanHotSection ref="doubanHotRef" :on-search="quickSearch" />
+      </ErrorBoundary>
     </section>
   </div>
 </template>
@@ -137,6 +151,8 @@ import { PLATFORM_INFO } from "~/config/plugins";
 const config = useRuntimeConfig();
 const apiBase = (config.public?.apiBase as string) || "/api";
 const siteUrl = (config.public?.siteUrl as string) || "";
+const route = useRoute();
+const router = useRouter();
 
 // 热搜组件引用
 const hotSearchRef = ref<InstanceType<typeof HotSearchSection> | null>(null);
@@ -144,9 +160,16 @@ const doubanHotRef = ref<InstanceType<typeof DoubanHotSection> | null>(null);
 
 // 页面加载时初始化热搜数据
 onMounted(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await nextTick();
+  // 从 URL 读取搜索关键词
+  const q = route.query.q;
+  if (q && typeof q === "string") {
+    kw.value = q;
+    await doSearch();
+  }
   if (doubanHotRef.value) await doubanHotRef.value.init();
   if (hotSearchRef.value) await hotSearchRef.value.init();
+  fetchHotTerms();
 });
 
 // SEO 元数据
@@ -205,6 +228,19 @@ const filterPlatform = ref<string>("all");
 const initialVisible = 3;
 const expandedSet = ref<Set<string>>(new Set());
 
+// 空状态热搜推荐
+const hotTerms = ref<string[]>([]);
+
+async function fetchHotTerms() {
+  try {
+    const res = await fetch("/api/hot-searches?limit=5");
+    const data = await res.json();
+    if (data.code === 0) {
+      hotTerms.value = data.data.hotSearches.map((s: any) => s.term);
+    }
+  } catch {}
+}
+
 // 使用搜索 composable
 const {
   state: searchState,
@@ -249,6 +285,10 @@ async function doSearch() {
   loadSettings();
   const keyword = kw.value.trim();
   recordHotSearch(keyword);
+  // 同步搜索词到 URL
+  if (router) {
+    router.replace({ query: { q: keyword } });
+  }
   await performSearch({
     ...getSearchOptions(),
     onAuthRequired: requestUnlock ?? undefined,
@@ -299,6 +339,10 @@ async function fullReset() {
   filterPlatform.value = "all";
   expandedSet.value = new Set();
   resetSearch();
+  // 清除 URL 参数
+  if (router) {
+    router.replace({ query: {} });
+  }
   // 刷新页面以恢复初始状态（包括豆瓣电影）
   await nextTick();
   if (doubanHotRef.value) await doubanHotRef.value.init();
@@ -497,7 +541,7 @@ function visibleSorted(items: any[]) {
   letter-spacing: 0.02em;
   color: var(--primary-dark);
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--bg-input);
   border: 1px solid rgba(15, 118, 110, 0.2);
   border-radius: 10px;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -772,6 +816,33 @@ function visibleSorted(items: any[]) {
   line-height: 1.6;
 }
 
+.empty-suggestions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.empty-suggestions__label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.empty-suggestions__tag {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.empty-suggestions__tag:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 /* 错误提示 */
 .error-alert {
   display: flex;
@@ -895,143 +966,6 @@ function visibleSorted(items: any[]) {
   .tag {
     padding: 6px 12px;
     font-size: 12px;
-  }
-}
-
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .hero-row {
-    background: linear-gradient(160deg, rgba(13, 148, 136, 0.14) 0%, rgba(13, 148, 136, 0.04) 40%, rgba(217, 119, 6, 0.08) 80%, rgba(13, 148, 136, 0.06) 100%);
-    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border-light);
-  }
-
-  .hero-accent {
-    background: linear-gradient(180deg, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%);
-  }
-
-  .hero-badge {
-    background: rgba(13, 148, 136, 0.2);
-    color: var(--primary);
-    border-color: rgba(45, 212, 191, 0.2);
-  }
-
-  .hero-title-line--accent {
-    background: linear-gradient(120deg, #2dd4bf 0%, #14b8a6 40%, #fbbf24 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
-  .hero-description {
-    color: var(--text-secondary);
-  }
-
-  .hero-feature {
-    color: var(--primary);
-    background: rgba(13, 148, 136, 0.1);
-    border-color: rgba(45, 212, 191, 0.15);
-  }
-
-  .hero-feature:hover {
-    background: rgba(13, 148, 136, 0.16);
-    border-color: rgba(45, 212, 191, 0.3);
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
-  }
-
-  .hero-shape {
-    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%);
-  }
-
-  .hero-noise {
-    opacity: 0.03;
-  }
-
-  .stats-bar {
-    background: var(--bg-glass);
-    border-color: var(--border-light);
-    box-shadow: var(--shadow-md);
-  }
-
-  .stat-item {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-  }
-
-  .stat-value {
-    color: var(--primary);
-  }
-
-  .loading-indicator {
-    background: rgba(13, 148, 136, 0.12);
-    border-color: rgba(13, 148, 136, 0.2);
-  }
-
-  .loading-text {
-    color: var(--primary);
-  }
-
-  .paused-indicator-bar {
-    background: rgba(217, 119, 6, 0.1);
-    border-color: rgba(217, 119, 6, 0.25);
-    color: #fbbf24;
-  }
-
-  .filter-pill {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .filter-pill:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
-  }
-
-  .filter-pill.active {
-    background: linear-gradient(135deg, #0d9488, #14b8a6);
-    color: #042f2e;
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
-  }
-
-  .sort-select {
-    background: var(--bg-secondary);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-  }
-
-  .sort-select:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-medium);
-  }
-
-  .sort-select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
-  }
-
-  .empty-card {
-    background: var(--bg-glass);
-    border-color: var(--border-light);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .empty-card h3 {
-    color: var(--text-primary);
-  }
-
-  .empty-card p {
-    color: var(--text-secondary);
-  }
-
-  .error-alert {
-    background: rgba(248, 113, 113, 0.1);
-    border-color: rgba(248, 113, 113, 0.25);
-    color: #f87171;
-  }
-
-  .hot-search-section {
-    /* HotSearchSection 组件内部已处理 */
   }
 }
 

@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="gate">
-      <div v-if="visible" class="gate-overlay" role="dialog" aria-modal="true" aria-labelledby="gate-title">
-        <div class="gate-card">
+      <div v-if="visible" class="gate-overlay" data-theme-part="gate-overlay" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+        <div class="gate-card" data-theme-part="gate-card">
           <h2 id="gate-title" class="gate-title">请输入访问密码</h2>
           <p class="gate-desc">搜索功能已加密保护，输入正确密码后可继续使用</p>
           <form @submit.prevent="onSubmit" class="gate-form">

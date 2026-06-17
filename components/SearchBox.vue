@@ -1,7 +1,7 @@
 <template>
   <section class="search">
     <div class="search-container">
-      <div class="search-box" :class="{ focused: isFocused, loading: loading }">
+      <div class="search-box" data-theme-part="search-box" :class="{ focused: isFocused, loading: loading }">
         <div class="search-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
@@ -25,9 +25,7 @@
           "
           @focus="isFocused = true"
           @blur="isFocused = false"
-          @keyup.enter="handleSearch"
-          @touchstart="handleTouchStart"
-          @touchend="handleTouchEnd" />
+          @keyup.enter="handleSearch" />
 
         <div class="search-actions">
           <!-- 重置按钮 - 搜索后显示 -->
@@ -39,8 +37,7 @@
               $emit('update:modelValue', '');
               $emit('reset');
             "
-            @touchstart="handleTouchStart"
-            @touchend="handleTouchEnd"
+
             aria-label="重置搜索"
             title="重置搜索">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -59,8 +56,7 @@
               $emit('update:modelValue', '');
               $emit('reset');
             "
-            @touchstart="handleTouchStart"
-            @touchend="handleTouchEnd"
+
             aria-label="清空关键词"
             title="清空">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,8 +71,7 @@
             class="action-btn pause"
             type="button"
             @click="$emit('pause')"
-            @touchstart="handleTouchStart"
-            @touchend="handleTouchEnd"
+
             aria-label="暂停搜索"
             title="暂停搜索">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,8 +87,7 @@
             class="action-btn resume"
             type="button"
             @click="$emit('continue')"
-            @touchstart="handleTouchStart"
-            @touchend="handleTouchEnd"
+
             aria-label="继续搜索"
             title="继续搜索">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,9 +106,7 @@
             type="button"
             :disabled="!modelValue"
             aria-label="开始搜索"
-            @click="handleSearch"
-            @touchstart="handleTouchStart"
-            @touchend="handleTouchEnd">
+            @click="handleSearch">
             <span class="btn-text">搜索</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M5 12h14M12 5l7 7-7 7"></path>
@@ -129,6 +121,7 @@
             </svg>
           </div>
         </div>
+
       </div>
     </div>
   </section>
@@ -146,7 +139,6 @@ const emit = defineEmits(["update:modelValue", "search", "reset", "pause", "cont
 
 const isFocused = ref(false);
 const inputEl = ref<HTMLInputElement | null>(null);
-const touchStartTime = ref(0);
 
 // 处理搜索按钮点击
 function handleSearch() {
@@ -164,21 +156,16 @@ function handleSearch() {
   }, 50);
 }
 
-// 处理触摸开始事件
-function handleTouchStart() {
-  touchStartTime.value = Date.now();
-}
-
-// 处理触摸结束事件
-function handleTouchEnd() {
-  const touchDuration = Date.now() - touchStartTime.value;
-  // 如果触摸时间太短，可能是误触，不执行操作
-  if (touchDuration < 50) {
-    return;
+function onKeyDownGlobal(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+    e.preventDefault();
+    inputEl.value?.focus();
+    inputEl.value?.select();
   }
 }
 
 onMounted(() => {
+  document.addEventListener("keydown", onKeyDownGlobal);
   // 仅在桌面端自动聚焦，避免移动端抢焦点和键盘闪烁
   if (window.matchMedia("(pointer: fine)").matches) {
     requestAnimationFrame(() => {
@@ -187,6 +174,10 @@ onMounted(() => {
       }, 100);
     });
   }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onKeyDownGlobal);
 });
 </script>
 
@@ -214,29 +205,12 @@ onMounted(() => {
   transition: border-color var(--transition-normal), box-shadow var(--transition-normal),
     transform var(--transition-normal);
   position: relative;
-  overflow: hidden;
-}
-
-.search-box::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
-  opacity: 0;
-  transition: opacity var(--transition-normal);
 }
 
 .search-box.focused {
   border-color: var(--primary);
   box-shadow: 0 10px 26px rgba(15, 118, 110, 0.14);
   transform: translateY(-2px);
-}
-
-.search-box.focused::before {
-  opacity: 1;
 }
 
 .search-box.loading {
@@ -290,6 +264,7 @@ onMounted(() => {
   color: var(--text-tertiary);
   font-weight: 400;
 }
+
 
 /* 操作按钮区域 */
 .search-actions {
@@ -346,7 +321,7 @@ onMounted(() => {
 
 /* 幽灵按钮 - 透明背景 */
 .action-btn.ghost {
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--bg-input);
   color: var(--text-secondary);
   border: 1px solid var(--border-light);
   padding: 8px;
@@ -516,99 +491,6 @@ onMounted(() => {
   .action-btn {
     padding: 6px 8px;
     font-size: 12px;
-  }
-}
-
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .search-box {
-    background: var(--bg-glass);
-    border-color: var(--border-light);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-
-  .search-box::before {
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
-  }
-
-  .search-box.focused {
-    border-color: var(--primary);
-    box-shadow: 0 8px 32px rgba(13, 148, 136, 0.18);
-  }
-
-  .search-box.loading {
-    border-color: var(--primary);
-  }
-
-  @keyframes searchPulse {
-    0%, 100% { box-shadow: 0 8px 32px rgba(13, 148, 136, 0.16); }
-    50% { box-shadow: 0 8px 40px rgba(13, 148, 136, 0.28); }
-  }
-
-  .search-icon {
-    color: var(--text-tertiary);
-  }
-
-  .search-box.focused .search-icon {
-    color: var(--primary);
-  }
-
-  .search-input {
-    color: var(--text-primary);
-  }
-
-  .search-input::placeholder {
-    color: var(--text-tertiary);
-  }
-
-  .action-btn.primary {
-    background: linear-gradient(135deg, #0d9488, #14b8a6);
-    color: #042f2e;
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
-  }
-
-  .action-btn.primary:hover:not(:disabled) {
-    box-shadow: 0 8px 18px rgba(13, 148, 136, 0.4);
-  }
-
-  .action-btn.ghost {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .action-btn.ghost:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--border-medium);
-    color: var(--text-primary);
-  }
-
-  .action-btn.ghost:active {
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .action-btn.pause {
-    background: linear-gradient(135deg, #d97706, #fbbf24);
-    color: #451a03;
-  }
-
-  .action-btn.resume {
-    background: linear-gradient(135deg, #059669, #34d399);
-    color: #022c22;
-  }
-
-  .action-btn.reset {
-    background: linear-gradient(135deg, #dc2626, #f87171);
-    color: #450a0a;
-  }
-
-  .paused-indicator {
-    color: #fbbf24;
-  }
-
-  .loading-spinner {
-    border-color: rgba(13, 148, 136, 0.2);
-    border-top-color: var(--primary);
   }
 }
 

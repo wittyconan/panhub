@@ -3,7 +3,7 @@
 
   <div v-else class="hot-search-section">
     <div class="cloud-container">
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="loading-state" data-theme-part="loading-state">
         <div class="spinner"></div>
         <span>搜索热度加载中…</span>
       </div>
@@ -13,6 +13,7 @@
           v-show="!loading && searches.length > 0"
           ref="tagCloudRef"
           class="tag-cloud-wrap"
+          data-theme-part="tag-cloud-wrap"
           @click="onContainerClick"
         />
         <template #fallback>
@@ -167,7 +168,7 @@ defineExpose({ init, refresh });
 .tag-cloud-wrap {
   min-height: 340px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-surface);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-light);
   border-radius: 14px;
@@ -176,7 +177,7 @@ defineExpose({ init, refresh });
 
 .tag-cloud-placeholder {
   min-height: 340px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: 14px;
 }
@@ -214,7 +215,7 @@ defineExpose({ init, refresh });
   gap: 12px;
   padding: 40px 20px;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--bg-surface);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-light);
   border-radius: 14px;
@@ -247,37 +248,6 @@ defineExpose({ init, refresh });
 
   .loading-state {
     padding: 24px 12px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .tag-cloud-wrap {
-    background: rgba(22, 27, 34, 0.5);
-    border-color: var(--border-light);
-  }
-
-  .tag-cloud-wrap :deep(.hot-tagcloud-item) {
-    color: var(--primary) !important;
-  }
-
-  .tag-cloud-wrap :deep(.hot-tagcloud-item:hover) {
-    color: #fbbf24 !important;
-  }
-
-  .tag-cloud-placeholder {
-    background: rgba(22, 27, 34, 0.5);
-    border-color: var(--border-light);
-  }
-
-  .loading-state {
-    background: rgba(22, 27, 34, 0.5);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-  }
-
-  .spinner {
-    border-color: rgba(13, 148, 136, 0.2);
-    border-top-color: var(--primary);
   }
 }
 
