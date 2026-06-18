@@ -36,11 +36,14 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
-    // 根据环境变量动态选择部署预设
+    // 动态选择部署预设：Vercel、Cloudflare Pages/Workers、或者回退到 node-server
     preset: process.env.VERCEL
       ? "vercel"
-      : process.env.NITRO_PRESET || "node-server",
-    // Vercel serverless function 最大执行时间（Pro: 60s, Hobby: 10s）
+      : process.env.CF_PAGES || process.env.cloudflare
+        ? "cloudflare-pages"
+        : process.env.NITRO_PRESET || "cloudflare-module", // 针对你本地执行 wrangler deploy 的场景，默认切到 cloudflare-module
+    
+    // Vercel 专属配置
     vercel: {
       functions: {
         maxDuration: 60,
