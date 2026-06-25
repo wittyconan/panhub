@@ -6,6 +6,8 @@ const MAX_ENTRIES = 30;
 const DEFAULT_DB_DIR = "./data";
 const DEFAULT_DB_PATH = "./data/hot-searches.db";
 const LAMBDA = 0.05;
+/** 热搜只展示最近 N 天内有搜索记录的词 */
+const HOT_WINDOW_DAYS = 7;
 
 function isForbidden(term: string): boolean {
   const forbiddenPatterns = [
@@ -158,10 +160,12 @@ export class SqliteHotSearchStore implements IHotSearchStore {
   async getHotSearches(limit: number): Promise<HotSearchItem[]> {
     await this.waitForInit();
     const now = Date.now();
+    const cutoff = now - HOT_WINDOW_DAYS * 86400000;
     const result = this.db.exec(`
       SELECT term, score, last_searched_at, created_at,
         score * exp(-0.05 * ((${now} - last_searched_at) / 86400000.0)) as decayed_score
       FROM hot_searches
+      WHERE last_searched_at >= ${cutoff}
       ORDER BY decayed_score DESC
       LIMIT ${Math.min(limit, MAX_ENTRIES)}
     `);
@@ -183,6 +187,13 @@ export class SqliteHotSearchStore implements IHotSearchStore {
   }
 
   cleanupOldEntries(maxEntries: number): void {
+    // 清理超过 7 天未搜索的旧词，释放空间
+    const now = Date.now();
+    const cutoff = now - HOT_WINDOW_DAYS * 86400000;
+    this.db.run(`
+      DELETE FROM hot_searches WHERE last_searched_at < ?
+    `, [cutoff]);
+    // 保留最多 maxEntries 条记录
     this.db.run(`
       DELETE FROM hot_searches WHERE id NOT IN (
         SELECT id FROM hot_searches ORDER BY score DESC, last_searched_at DESC LIMIT ?

@@ -14,6 +14,29 @@
           <span class="brand-icon">🔍</span>
           <span class="brand-text">PanHub</span>
         </NuxtLink>
+
+        <!-- 移动端菜单按钮 -->
+        <button class="btn-icon nav-menu-btn" type="button" @click="showNavMenu = !showNavMenu" aria-label="导航菜单" title="导航菜单">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <!-- 桌面端导航链接 -->
+        <div class="nav-links">
+          <a
+            v-for="link in navLinks"
+            :key="link.name"
+            :href="link.isCurrent ? undefined : link.url"
+            :class="['nav-link', { active: link.isCurrent }]"
+            :target="link.isCurrent ? undefined : '_blank'"
+            :rel="link.isCurrent ? undefined : 'noopener noreferrer'">
+            {{ link.name }}
+          </a>
+        </div>
+
         <div class="nav-actions">
           <!-- 暗色模式切换 -->
           <ClientOnly>
@@ -34,18 +57,17 @@
               </svg>
             </button>
           </ClientOnly>
-          <!-- GitHub 链接 -->
+          <!-- 社交链接 -->
           <a
-            href="https://github.com/wu529778790/panhub.shenzjd.com"
+            v-for="social in socialLinks"
+            :key="social.name"
+            :href="social.url"
             target="_blank"
             rel="noopener noreferrer"
-            class="btn-icon github-btn"
-            aria-label="打开 GitHub 仓库"
-            title="GitHub 仓库">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-            </svg>
-          </a>
+            class="btn-icon social-btn"
+            :aria-label="social.name"
+            :title="social.name"
+            v-html="social.icon" />
           <!-- 设置按钮 -->
           <button class="btn-icon" type="button" @click="openSettings = true" aria-label="打开设置" title="设置">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -54,6 +76,24 @@
             </svg>
           </button>
         </div>
+
+        <!-- 移动端下拉菜单 -->
+        <ClientOnly>
+          <Transition name="nav-menu">
+            <div v-if="showNavMenu" class="nav-dropdown">
+              <a
+                v-for="link in navLinks"
+                :key="link.name"
+                :href="link.isCurrent ? undefined : link.url"
+                :class="['nav-dropdown__link', { active: link.isCurrent }]"
+                :target="link.isCurrent ? undefined : '_blank'"
+                :rel="link.isCurrent ? undefined : 'noopener noreferrer'"
+                @click="showNavMenu = false">
+                {{ link.name }}
+              </a>
+            </div>
+          </Transition>
+        </ClientOnly>
       </nav>
     </header>
 
@@ -108,6 +148,36 @@ const { isDark, toggle: toggleDark, init: initDarkMode } = useDarkMode();
 const auth = useAuth();
 const openSettings = ref(false);
 const showPasswordGate = ref(false);
+const showNavMenu = ref(false);
+
+// 导航链接
+const navLinks = [
+  { name: "Alist", url: "https://alist.shenzjd.com" },
+  { name: "网盘搜索", url: "https://panhub.shenzjd.com", isCurrent: true },
+  { name: "视频解析", url: "https://parse.shenzjd.com" },
+  { name: "热点聚合", url: "https://newshub.shenzjd.com" },
+  { name: "个人导航", url: "https://navhub.shenzjd.com" },
+  { name: "必应壁纸", url: "https://bing.shenzjd.com" },
+];
+
+// 社交链接
+const socialLinks = [
+  {
+    name: "Telegram",
+    url: "https://t.me/shenzjd_com",
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`,
+  },
+  {
+    name: "GitHub",
+    url: "https://github.com/wu529778790",
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>`,
+  },
+  {
+    name: "X",
+    url: "https://x.com/shenzujiudi",
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
+  },
+];
 const unlockSubmitting = ref(false);
 const pendingOnUnlock = ref<(() => void) | null>(null);
 
@@ -151,6 +221,13 @@ onMounted(() => {
   initDarkMode();
   loadSettings();
   auth.fetchStatus();
+  // 点击外部关闭移动端导航菜单
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (showNavMenu.value && !target.closest(".nav-menu-btn") && !target.closest(".nav-dropdown")) {
+      showNavMenu.value = false;
+    }
+  });
 });
 </script>
 
@@ -161,11 +238,12 @@ onMounted(() => {
 <style scoped>
 /* 主布局 */
 .layout {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 背景装饰 - 玻璃拟态效果 */
@@ -303,19 +381,109 @@ onMounted(() => {
   stroke: currentColor;
 }
 
-/* GitHub 按钮特殊样式 */
-.github-btn {
+/* GitHub 按钮特殊样式 — 已废弃，由 social-btn 替代 */
+
+/* 导航链接（桌面端） */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.nav-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.nav-link.active {
+  color: var(--primary);
+  font-weight: 700;
+  background: rgba(15, 118, 110, 0.08);
+}
+
+/* 社交图标按钮 */
+.social-btn {
   color: var(--text-secondary);
 }
 
-.github-btn:hover {
+.social-btn:hover {
   color: var(--primary);
   background: var(--bg-btn-hover);
 }
 
-.github-btn svg {
+.social-btn svg {
   stroke: none;
   fill: currentColor;
+}
+
+/* 移动端菜单按钮（桌面隐藏） */
+.nav-menu-btn {
+  display: none;
+}
+
+/* 移动端下拉菜单 */
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-lg);
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  z-index: 99;
+}
+
+.nav-dropdown__link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  width: calc(50% - 4px);
+}
+
+.nav-dropdown__link:hover {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.nav-dropdown__link.active {
+  color: var(--primary);
+  font-weight: 700;
+  background: rgba(15, 118, 110, 0.08);
+}
+
+/* 下拉菜单动画 */
+.nav-menu-enter-active,
+.nav-menu-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.nav-menu-enter-from,
+.nav-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 /* 主内容区 */
@@ -370,9 +538,26 @@ onMounted(() => {
 }
 
 /* 移动端优化 */
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .nav {
     padding: 12px 16px;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .nav-menu-btn {
+    display: flex;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .btn-icon {
+    width: 36px;
+    height: 36px;
   }
 
   .main {
@@ -381,11 +566,6 @@ onMounted(() => {
 
   .brand {
     font-size: 18px;
-  }
-
-  .btn-icon {
-    width: 36px;
-    height: 36px;
   }
 
   .toast {

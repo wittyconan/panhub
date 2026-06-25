@@ -1,7 +1,26 @@
 import { defineEventHandler, readBody, sendError, createError } from "h3";
+
+/** 从 H3 event 中提取客户端断开信号（兼容 h3 无 getAbortSignal 的版本） */
+function getClientAbortSignal(event: any): AbortSignal | undefined {
+  // 优先使用 h3 原生能力（若未来版本支持）
+  if (typeof event._signal === "object" && event._signal instanceof AbortSignal) {
+    return event._signal;
+  }
+  // 回退：监听 node req 的 close 事件
+  const req = event.node?.req;
+  if (req && typeof req.on === "function") {
+    const controller = new AbortController();
+    req.on("close", () => {
+      if (req.destroyed || req.writableEnded === false && req.readableEnded) {
+        controller.abort();
+      }
+    });
+    return controller.signal;
+  }
+  return undefined;
+}
 import { requireSearchAuth } from "../utils/requireAuth";
 import { getOrCreateSearchService } from "../core/services";
-import { logSearchOnce } from "../utils/searchLog";
 import type { GenericResponse, SearchRequest } from "../core/types/models";
 
 export default defineEventHandler(async (event) => {
@@ -40,6 +59,8 @@ export default defineEventHandler(async (event) => {
   if (body.src === "tg") body.plugins = undefined;
   else if (body.src === "plugin") body.channels = undefined;
 
+  const signal = getClientAbortSignal(event);
+
   const { response: result, warnings } = await service.searchWithWarnings(
     kw,
     body.channels,
@@ -49,18 +70,9 @@ export default defineEventHandler(async (event) => {
     body.src,
     body.plugins,
     body.cloud_types,
-    body.ext || {}
+    body.ext || {},
+    signal
   );
-
-  logSearchOnce(kw, {
-    src: body.src,
-    channels: body.channels?.length || 0,
-    plugins: body.plugins?.length || 0,
-    results: result?.merged_by_type
-      ? Object.values(result.merged_by_type).reduce((sum: number, v: any) => sum + (v.links?.length || 0), 0)
-      : 0,
-    warnings: warnings.length,
-  });
 
   const resp: GenericResponse<typeof result> = {
     code: 0,

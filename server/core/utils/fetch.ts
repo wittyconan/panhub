@@ -23,6 +23,8 @@ export interface FetchWithRetryOptions {
   timeout?: number;
   /** 请求失败时是否记录警告日志，默认 true */
   logWarnings?: boolean;
+  /** 取消信号，客户端断开时中止请求和重试 */
+  signal?: AbortSignal;
 }
 
 /**
@@ -59,6 +61,7 @@ export async function fetchWithRetry<T = any>(
     exponentialBackoff = true,
     timeout = 8000,
     logWarnings = true,
+    signal,
   } = retryOptions;
 
   const fetcher: $Fetch = ofetch.create({
@@ -73,11 +76,26 @@ export async function fetchWithRetry<T = any>(
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // 客户端断开时立即中止，不再重试
+    if (signal?.aborted) {
+      throw new DOMException("Request was cancelled", "AbortError");
+    }
+
     try {
       const result = await fetcher<T>(url);
       return result;
     } catch (error) {
       lastError = error as Error;
+
+      // 如果是取消信号导致的错误，直接抛出不再重试
+      if (signal?.aborted) {
+        throw lastError;
+      }
+
+      // 4xx 客户端错误不可恢复，立即放弃不做无意义重试
+      if ((error as any)?.statusCode >= 400 && (error as any)?.statusCode < 500) {
+        throw lastError;
+      }
 
       // 如果是最后一次尝试，抛出错误
       if (attempt === maxRetries) {

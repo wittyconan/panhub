@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SearchService } from "../../server/core/services/searchService";
 import {
   BaseAsyncPlugin,
@@ -31,6 +31,25 @@ class SuccessPlugin extends BaseAsyncPlugin {
 class EmptyPlugin extends BaseAsyncPlugin {
   async search(): Promise<SearchResult[]> {
     return [];
+  }
+}
+
+// 模拟一个卡死的插件：永不自行 resolve，只有收到 abort 信号才结束
+class HangingPlugin extends BaseAsyncPlugin {
+  receivedSignal: AbortSignal | undefined;
+
+  async search(
+    _keyword: string,
+    ext?: Record<string, any>
+  ): Promise<SearchResult[]> {
+    this.receivedSignal = ext?.signal;
+    return new Promise<SearchResult[]>((resolve) => {
+      this.receivedSignal?.addEventListener(
+        "abort",
+        () => resolve([]),
+        { once: true }
+      );
+    });
   }
 }
 
@@ -179,6 +198,32 @@ describe("SearchService warnings", () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it("records plugin failures so the circuit breaker can trip", async () => {
+    const service = createService(new ThrowingPlugin("thrower", 1));
+
+    // maxFailures 为 5，跑 6 次确保跨过熔断阈值
+    for (let i = 0; i < 6; i++) {
+      await service.searchWithWarnings(
+        "test",
+        [],
+        1,
+        false,
+        "merged_by_type",
+        "plugin",
+        ["thrower"],
+        undefined,
+        {}
+      );
+    }
+
+    const status = service
+      .getPluginHealthStatus()
+      .find((item) => item.name === "thrower");
+
+    expect(status?.failureCount).toBeGreaterThanOrEqual(5);
+    expect(status?.isHealthy).toBe(false);
+  });
+
   it("does not mark a plugin unhealthy when it simply returns no results", async () => {
     const service = createService(new EmptyPlugin("empty", 1));
 
@@ -226,6 +271,36 @@ describe("SearchService warnings", () => {
     expect(status?.successCount).toBe(1);
   });
 
+  it("aborts the plugin abort signal when its search exceeds the timeout", async () => {
+    const plugin = new HangingPlugin("hanging", 1);
+    const service = createService(plugin); // pluginTimeoutMs: 100
+
+    vi.useFakeTimers();
+    try {
+      const pending = service.searchWithWarnings(
+        "test",
+        [],
+        1,
+        false,
+        "merged_by_type",
+        "plugin",
+        ["hanging"],
+        undefined,
+        {}
+      );
+
+      // searchPlugins 的 timeoutMs 有 Math.max(3000, ...) 下限，需推进超过 3000ms
+      await vi.advanceTimersByTimeAsync(3500);
+      await pending;
+
+      // 插件应通过 ext 收到一个 abort signal，且超时后被 abort
+      expect(plugin.receivedSignal).toBeDefined();
+      expect(plugin.receivedSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("merges variant query results when exact plugin results are sparse", async () => {
     const service = createService(new VariantMergePlugin("variant", 1));
 
@@ -243,5 +318,19 @@ describe("SearchService warnings", () => {
 
     expect(result.response.total).toBe(2);
     expect(result.warnings).toEqual([]);
+  });
+
+  it("sorts newest-first and puts missing-datetime entries last (no NaN breakage)", () => {
+    const service = createService(new EmptyPlugin("empty", 1));
+    const results: { title: string; datetime: string }[] = [
+      { title: "no-date", datetime: "" },
+      { title: "old", datetime: "2020-01-01T00:00:00.000Z" },
+      { title: "new", datetime: "2026-06-01T00:00:00.000Z" },
+    ];
+
+    (service as any).sortResultsByTimeDesc(results);
+
+    // 有日期的按时间倒序，无日期的排到最后，比较器不能产生 NaN
+    expect(results.map((r) => r.title)).toEqual(["new", "old", "no-date"]);
   });
 });

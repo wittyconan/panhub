@@ -7,6 +7,7 @@ import { logger } from "../utils/logger";
 export interface TgFetchOptions {
   limitPerChannel?: number;
   userAgent?: string;
+  signal?: AbortSignal;
 }
 
 export async function fetchTgChannelPosts(
@@ -24,12 +25,15 @@ export async function fetchTgChannelPosts(
   let before: string | undefined;
 
   for (let page = 0; page < maxPages && allResults.length < limit; page++) {
+    // 客户端断开时提前退出分页循环
+    if (options.signal?.aborted) break;
+
     const baseUrl = `https://t.me/s/${encodeURIComponent(channel)}`;
     const url = before ? `${baseUrl}?before=${before}` : baseUrl;
 
     let html = "";
     try {
-      html = await ofetch<string>(url, { headers: { "user-agent": ua } });
+      html = await ofetch<string>(url, { headers: { "user-agent": ua }, signal: options.signal });
     } catch (e: any) {
       logger.debug?.(`TG fetch failed for ${url}: ${e?.message || e}`);
     }
@@ -40,7 +44,7 @@ export async function fetchTgChannelPosts(
         : `https://r.jina.ai/https://t.me/s/${encodeURIComponent(channel)}`;
 
       try {
-        html = await ofetch<string>(mirrorUrl, { headers: { "user-agent": ua } });
+        html = await ofetch<string>(mirrorUrl, { headers: { "user-agent": ua }, signal: options.signal });
       } catch (e: any) {
         logger.debug?.(`TG mirror fetch failed for ${mirrorUrl}: ${e?.message || e}`);
       }
@@ -75,7 +79,7 @@ export async function fetchTgChannelPosts(
   return allResults;
 }
 
-function parseChannelPage(
+export function parseChannelPage(
   $: cheerio.CheerioAPI,
   channel: string,
   keyword: string,
@@ -131,24 +135,47 @@ function parseChannelPage(
     const urlPattern = /https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+/g;
     const passwdPattern = /(?:提取码|密码|pwd|pass)[:：\s]*([a-zA-Z0-9]{3,6})/i;
 
-    const addUrl = (raw: string) => {
+    // 解析原始 URL 为 { url, type }；展开 r.jina.ai 代理，以及 t.me 分享/跳转链接
+    // 里嵌套的真实网盘地址（如 https://t.me/share/url?url=https://pan.quark.cn/...）。
+    // 否则宽正则会把整条 t.me 链接匹配出来，真实网盘地址被当成 t.me 丢弃。
+    const resolveUrl = (raw: string): { url: string; type: string } | null => {
       const deproxied = deproxyUrl(raw);
-      let host = "";
+      let parsed: URL;
       try {
-        host = new URL(deproxied).hostname || "";
+        parsed = new URL(deproxied);
       } catch {
-        return;
+        return null;
       }
-      const type = classifyByHostname(host);
-      if (!type) return;
+      const type = classifyByHostname(parsed.hostname);
+      if (type) return { url: deproxied, type };
 
-      const key = deproxied.toLowerCase();
+      // 顶层域名不是网盘，检查是否是带 url= 的分享/跳转链接
+      const nestedRaw = parsed.searchParams.get("url");
+      if (nestedRaw) {
+        const nestedDeproxied = deproxyUrl(nestedRaw);
+        try {
+          const nestedType = classifyByHostname(
+            new URL(nestedDeproxied).hostname
+          );
+          if (nestedType) return { url: nestedDeproxied, type: nestedType };
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    };
+
+    const addUrl = (raw: string) => {
+      const resolved = resolveUrl(raw);
+      if (!resolved) return;
+
+      const key = resolved.url.toLowerCase();
       if (seenUrls.has(key)) return;
       seenUrls.add(key);
 
       const m = text.match(passwdPattern);
       const password = m ? m[1] : "";
-      links.push({ type, url: deproxied, password });
+      links.push({ type: resolved.type, url: resolved.url, password });
     };
 
     const urlsFromText = text.match(urlPattern) || [];
