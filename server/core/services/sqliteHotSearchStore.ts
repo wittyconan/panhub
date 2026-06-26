@@ -1,5 +1,6 @@
 import type { IHotSearchStore, HotSearchItem, HotSearchStats } from "./hotSearchStore";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const MAX_ENTRIES = 30;
@@ -121,7 +122,17 @@ export class SqliteHotSearchStore implements IHotSearchStore {
     } catch {}
   }
 
+  // 热路径（每 500ms 防抖触发）：异步写入避免阻塞事件循环
   private saveToDisk(): void {
+    try {
+      const data = this.db.export();
+      const buffer = Buffer.from(data);
+      writeFile(this.dbPath, buffer).catch(() => {});
+    } catch {}
+  }
+
+  // 同步写入：仅用于 close() 等需要确保数据落盘的场景
+  private saveToDiskSync(): void {
     try {
       const data = this.db.export();
       const buffer = Buffer.from(data);
@@ -241,7 +252,7 @@ export class SqliteHotSearchStore implements IHotSearchStore {
   close(): void {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     if (this.db) {
-      this.saveToDisk();
+      this.saveToDiskSync(); // 同步写入确保数据落盘后再关闭
       this.db.close();
     }
   }

@@ -97,6 +97,17 @@
       </nav>
     </header>
 
+    <!-- 链接检测助手安装提示条（全宽细条，导航栏下方） -->
+    <div v-if="showCheckerTip" class="checker-bar">
+      <span class="checker-bar__text">
+        💡 安装 <a href="/panhub-link-checker.user.js" class="checker-bar__link">链接检测助手</a>
+        油猴脚本，自动标记失效链接
+        <span class="checker-bar__sep">·</span>
+        需要 <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" class="checker-bar__link">Tampermonkey</a> 扩展
+      </span>
+      <button class="checker-bar__close" @click="dismissCheckerTip" aria-label="关闭">✕</button>
+    </div>
+
     <!-- 主内容区 -->
     <main class="main">
       <NuxtPage />
@@ -152,6 +163,7 @@ const showNavMenu = ref(false);
 
 // 导航链接
 const navLinks = [
+  { name: "首页", url: "https://shenzjd.com" },
   { name: "Alist", url: "https://alist.shenzjd.com" },
   { name: "网盘搜索", url: "https://panhub.shenzjd.com", isCurrent: true },
   { name: "视频解析", url: "https://parse.shenzjd.com" },
@@ -217,18 +229,42 @@ watch(() => settings.value, (newVal, oldVal) => {
   }
 }, { deep: true });
 
+// 链接检测助手安装提示条
+const CHECKER_TIP_KEY = "panhub:checker-tip-dismissed";
+const showCheckerTip = ref(false);
+function checkCheckerTip() {
+  if ((window as any).__panhub_linkCheckerReady) return;
+  try {
+    if (localStorage.getItem(CHECKER_TIP_KEY)) return;
+  } catch {}
+  showCheckerTip.value = true;
+}
+function dismissCheckerTip() {
+  showCheckerTip.value = false;
+  try {
+    localStorage.setItem(CHECKER_TIP_KEY, "1");
+  } catch {}
+}
+
 onMounted(() => {
   initDarkMode();
   loadSettings();
   auth.fetchStatus();
-  // 点击外部关闭移动端导航菜单
-  document.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (showNavMenu.value && !target.closest(".nav-menu-btn") && !target.closest(".nav-dropdown")) {
-      showNavMenu.value = false;
-    }
-  });
+  document.addEventListener("click", onDocumentClick);
+  // 延迟 1 秒检测（等油猴脚本注入）
+  setTimeout(checkCheckerTip, 1000);
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocumentClick);
+});
+
+function onDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (showNavMenu.value && !target.closest(".nav-menu-btn") && !target.closest(".nav-dropdown")) {
+    showNavMenu.value = false;
+  }
+}
 </script>
 
 <style>
@@ -601,6 +637,64 @@ onMounted(() => {
 
   .blob {
     animation: none;
+  }
+}
+
+/* 链接检测助手通知条 */
+.checker-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 16px;
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.1) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border-bottom: 1px solid rgba(15, 118, 110, 0.12);
+  font-size: 13px;
+  color: var(--text-secondary, #4b5563);
+  line-height: 1.4;
+  animation: barSlideIn 0.3s ease;
+}
+.checker-bar__text {
+  text-align: center;
+}
+.checker-bar__link {
+  color: var(--primary, #0f766e);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.checker-bar__link:hover {
+  opacity: 0.8;
+}
+.checker-bar__sep {
+  margin: 0 4px;
+  opacity: 0.4;
+}
+.checker-bar__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-tertiary, #9ca3af);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.checker-bar__close:hover {
+  color: var(--text-primary, #1f2937);
+}
+@keyframes barSlideIn {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 640px) {
+  .checker-bar {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  .checker-bar__sep {
+    display: none;
   }
 }
 </style>

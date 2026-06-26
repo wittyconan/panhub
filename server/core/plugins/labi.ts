@@ -2,6 +2,7 @@ import { BaseAsyncPlugin } from "./manager";
 import type { SearchResult } from "../types/models";
 import { ofetch } from "ofetch";
 import { load } from "cheerio";
+import pLimit from "p-limit";
 
 const SEARCH_URL = (kw: string) =>
   `http://xiaocge.fun/index.php/vod/search/wd/${encodeURIComponent(kw)}.html`;
@@ -29,8 +30,9 @@ export class LabiPlugin extends BaseAsyncPlugin {
     const $ = load(html);
     const results: SearchResult[] = [];
     const items = $(".module-search-item");
+    const limit = pLimit(4);
     const tasks = items
-      .map(async (_, el) => {
+      .map((_, el) => limit(async () => {
         const s = $(el);
         const a = s.find(".module-item-pic a").first();
         const href = a.attr("href") || "";
@@ -73,7 +75,7 @@ export class LabiPlugin extends BaseAsyncPlugin {
           content: contentPieces.join("\n"),
           links,
         });
-      })
+      }))
       .get();
     await Promise.allSettled(tasks);
     return results;

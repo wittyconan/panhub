@@ -45,19 +45,20 @@ export interface WarningInfo {
  */
 export function classifyError(error: any, source?: string): ErrorDetail {
   const timestamp = Date.now();
+  const msg = typeof error?.message === "string" ? error.message : "";
 
   // 网络错误
   if (
     error?.code === "ECONNREFUSED" ||
     error?.code === "ENOTFOUND" ||
     error?.code === "ECONNRESET" ||
-    error?.message?.includes("network") ||
-    error?.message?.includes("ECONN")
+    msg.includes("network") ||
+    msg.includes("ECONN")
   ) {
     return {
       type: ErrorType.NETWORK_ERROR,
       severity: ErrorSeverity.MEDIUM,
-      message: `网络连接失败: ${error.message || "未知错误"}`,
+      message: `网络连接失败: ${msg || "未知错误"}`,
       source,
       timestamp,
     };
@@ -65,13 +66,13 @@ export function classifyError(error: any, source?: string): ErrorDetail {
 
   // 超时错误
   if (
-    error?.message?.includes("timeout") ||
-    error?.message?.includes("超时")
+    msg.includes("timeout") ||
+    msg.includes("超时")
   ) {
     return {
       type: ErrorType.TIMEOUT_ERROR,
       severity: ErrorSeverity.LOW,
-      message: `请求超时: ${error.message || "未能在指定时间内完成"}`,
+      message: `请求超时: ${msg || "未能在指定时间内完成"}`,
       source,
       timestamp,
     };
@@ -79,14 +80,14 @@ export function classifyError(error: any, source?: string): ErrorDetail {
 
   // 解析错误
   if (
-    error?.message?.includes("parse") ||
-    error?.message?.includes("解析") ||
+    msg.includes("parse") ||
+    msg.includes("解析") ||
     error?.name === "SyntaxError"
   ) {
     return {
       type: ErrorType.PARSE_ERROR,
       severity: ErrorSeverity.HIGH,
-      message: `数据解析失败: ${error.message || "无法解析响应数据"}`,
+      message: `数据解析失败: ${msg || "无法解析响应数据"}`,
       source,
       timestamp,
     };
@@ -96,7 +97,7 @@ export function classifyError(error: any, source?: string): ErrorDetail {
   return {
     type: ErrorType.UNKNOWN_ERROR,
     severity: ErrorSeverity.MEDIUM,
-    message: error?.message || "未知错误",
+    message: msg || "未知错误",
     source,
     timestamp,
   };

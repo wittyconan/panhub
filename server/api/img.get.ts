@@ -12,19 +12,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid url" });
   }
 
-  let host: string;
+  let parsed: URL;
   try {
-    host = new URL(url).hostname;
+    parsed = new URL(url);
   } catch {
     throw createError({ statusCode: 400, statusMessage: "Invalid url" });
   }
 
-  if (!ALLOWED_HOSTS.test(host)) {
+  if (!ALLOWED_HOSTS.test(parsed.hostname)) {
+    throw createError({ statusCode: 403, statusMessage: "Host not allowed" });
+  }
+
+  // 防止 SSRF 绕过：URL 中不得包含用户信息段或非标准端口
+  if (parsed.username || parsed.password || parsed.port) {
     throw createError({ statusCode: 403, statusMessage: "Host not allowed" });
   }
 
   try {
-    // 使用更真实的请求头，增加超时时间和重试
     const resp = await ofetch<ArrayBuffer>(url, {
       responseType: "arrayBuffer",
       headers: {
@@ -32,25 +36,22 @@ export default defineEventHandler(async (event) => {
         "Referer": "https://movie.douban.com/",
         "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
       },
-      timeout: 30000, // 增加到30秒
-      retry: 3, // 增加重试次数
-      retryDelay: 1000, // 重试延迟
+      timeout: 15000,
+      retry: 1,
+      retryDelay: 1000,
     });
 
     const buffer = Buffer.from(resp);
     setHeader(event, "Cache-Control", "public, max-age=86400");
-    const ext = url.split(".").pop()?.toLowerCase() || "jpg";
+    setHeader(event, "X-Content-Type-Options", "nosniff");
+    const ext = parsed.pathname.split(".").pop()?.toLowerCase() || "jpg";
     const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
     setHeader(event, "Content-Type", mime);
     return buffer;
   } catch (error: any) {
-    // 超时或网络错误时，返回透明占位图或重定向
-    console.error(`Failed to fetch image: ${url}`, error.message);
-
-    // 返回一个简单的错误响应，让前端使用占位图
     throw createError({
       statusCode: 503,
-      statusMessage: "Image fetch timeout"
+      statusMessage: "Image fetch timeout",
     });
   }
 });

@@ -1,8 +1,8 @@
 import { BaseAsyncPlugin } from "./manager";
 import type { SearchResult } from "../types/models";
-import { ofetch } from "ofetch";
 import { load } from "cheerio";
 import { fetchWithRetry } from "../utils/fetch";
+import pLimit from "p-limit";
 import { createLogger } from "../utils/logger";
 
 const logger = createLogger("panta");
@@ -52,8 +52,9 @@ export class PantaPlugin extends BaseAsyncPlugin {
     const $ = load(html);
     const results: SearchResult[] = [];
     const topics = $("div.topicItem");
+    const limit = pLimit(4);
     const tasks = topics
-      .map(async (_, el) => {
+      .map((_, el) => limit(async () => {
         const s = $(el);
         const a = s.find("a[href^='thread?topicId=']");
         const href = a.attr("href") || "";
@@ -103,7 +104,7 @@ export class PantaPlugin extends BaseAsyncPlugin {
             tags: ["panta"],
           });
         }
-      })
+      }))
       .get();
     await Promise.allSettled(tasks);
     return results;

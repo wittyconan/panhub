@@ -45,6 +45,12 @@ export default defineEventHandler(async (event) => {
       createError({ statusCode: 400, statusMessage: "kw is required" })
     );
   }
+  if (kw.length > 200) {
+    return sendError(
+      event,
+      createError({ statusCode: 400, statusMessage: "kw too long (max 200)" })
+    );
+  }
 
   let ext: Record<string, any> | undefined;
   const extStr = (q.ext as string | undefined)?.trim();
@@ -58,7 +64,7 @@ export default defineEventHandler(async (event) => {
           event,
           createError({
             statusCode: 400,
-            statusMessage: "invalid ext json: " + e?.message,
+            statusMessage: "invalid ext json",
           })
         );
       }
@@ -68,7 +74,10 @@ export default defineEventHandler(async (event) => {
   const req: SearchRequest = {
     kw,
     channels: parseList(q.channels as string | undefined),
-    conc: q.conc ? parseInt(String(q.conc), 10) : undefined,
+    conc: (() => {
+      const n = q.conc ? parseInt(String(q.conc), 10) : NaN;
+      return Number.isFinite(n) && n >= 1 && n <= 16 ? n : undefined;
+    })(),
     refresh: String(q.refresh).trim() === "true",
     res: (q.res as any) || "merged_by_type",
     src: (q.src as any) || "all",

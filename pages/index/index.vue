@@ -1026,4 +1026,5 @@ function visibleSorted(items: any[]) {
     opacity: 0.7;
   }
 }
+
 </style>

@@ -1,8 +1,8 @@
 import { BaseAsyncPlugin } from "./manager";
 import type { SearchResult } from "../types/models";
-import { ofetch } from "ofetch";
 import { load } from "cheerio";
 import { fetchWithRetry } from "../utils/fetch";
+import pLimit from "p-limit";
 import { createLogger } from "../utils/logger";
 
 const logger = createLogger("duoduo");
@@ -82,6 +82,7 @@ export class DuoduoPlugin extends BaseAsyncPlugin {
     if (!html) return [];
     const $ = load(html);
     const out: SearchResult[] = [];
+    const limit = pLimit(4);
     const tasks: Promise<any>[] = [];
     $(".module-search-item").each((_, el) => {
       const s = $(el);
@@ -91,7 +92,7 @@ export class DuoduoPlugin extends BaseAsyncPlugin {
       if (!href || !title) return;
       const detail = href.startsWith("/") ? `${BASE}${href}` : href;
       tasks.push(
-        (async () => {
+        limit(async () => {
           const links = await fetchDetail(detail);
           if (links.length) {
             out.push({
@@ -104,7 +105,7 @@ export class DuoduoPlugin extends BaseAsyncPlugin {
               links,
             });
           }
-        })()
+        })
       );
     });
     // 使用 Promise.allSettled 并行获取所有详情

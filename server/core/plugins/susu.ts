@@ -12,12 +12,11 @@ function decodeJWTURL(jwtToken: string): string {
   try {
     const parts = jwtToken.split(".");
     if (parts.length !== 3) return "";
-    const payload = JSON.parse(
-      Buffer.from(
-        parts[1].replace(/-/g, "+").replace(/_/g, "/"),
-        "base64"
-      ).toString("utf8")
-    );
+    // 使用 Web 标准 API 替代 Buffer.from，兼容 Cloudflare Workers
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
     return payload?.data?.url || "";
   } catch {
     return "";

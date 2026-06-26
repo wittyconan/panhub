@@ -152,11 +152,7 @@ export class SearchService {
     for (const result of allResults) {
       const hasTime = !!result.datetime;
       const hasLinks = Array.isArray(result.links) && result.links.length > 0;
-      const keywordPriority = this.getKeywordPriority(result.title);
-      const pluginLevel = this.getPluginLevelBySource(
-        this.getResultSource(result)
-      );
-      if (hasTime || hasLinks || keywordPriority > 0 || pluginLevel <= 2) {
+      if (hasTime || hasLinks) {
         filteredForResults.push(result);
       }
     }
@@ -484,18 +480,6 @@ export class SearchService {
       return Number.isFinite(t) ? t : 0;
     };
     arr.sort((x, y) => toTime(y.datetime) - toTime(x.datetime));
-  }
-
-  private getResultSource(_r: SearchResult): string {
-    return "";
-  }
-
-  private getPluginLevelBySource(_source: string): number {
-    return 3;
-  }
-
-  private getKeywordPriority(_title: string): number {
-    return 0;
   }
 
   private mergeResultsByType(

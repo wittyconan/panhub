@@ -56,7 +56,15 @@ export class PansearchPlugin extends BaseAsyncPlugin {
   }
 }
 
+// buildId 是 Next.js 构建产物 ID，变化频率以天/部署计，缓存 1 小时避免每次搜索都重抓首页
+let cachedBuildId: { value: string; expires: number } | null = null;
+const BUILD_ID_TTL = 3600_000; // 1 小时
+
 async function getBuildId(): Promise<string> {
+  if (cachedBuildId && Date.now() < cachedBuildId.expires) {
+    return cachedBuildId.value;
+  }
+
   const html = await fetchWithRetry<string>(
     WEBSITE,
     {
@@ -69,7 +77,10 @@ async function getBuildId(): Promise<string> {
     }
   );
   const m = /"buildId":"([^"]+)"/.exec(html);
-  if (m) return m[1];
+  if (m) {
+    cachedBuildId = { value: m[1], expires: Date.now() + BUILD_ID_TTL };
+    return m[1];
+  }
   const m2 =
     /<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s.exec(
       html
@@ -77,7 +88,10 @@ async function getBuildId(): Promise<string> {
   if (m2) {
     try {
       const data = JSON.parse(m2[1]);
-      if (data?.buildId) return data.buildId;
+      if (data?.buildId) {
+        cachedBuildId = { value: data.buildId, expires: Date.now() + BUILD_ID_TTL };
+        return data.buildId;
+      }
     } catch {}
   }
   throw new Error("no buildId");

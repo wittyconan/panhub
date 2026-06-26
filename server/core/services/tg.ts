@@ -55,7 +55,7 @@ export async function fetchTgChannelPosts(
     }
 
     const $ = load(html || "");
-    const pageResults = parseChannelPage($, channel, keyword, limit - allResults.length);
+    const pageResults = parseChannelPage($, channel, keyword, limit - allResults.length, allResults.length);
     allResults.push(...pageResults);
 
     const nextLink = $('a[href*="before="]').first();
@@ -72,7 +72,9 @@ export async function fetchTgChannelPosts(
     }
 
     if (page < maxPages - 1 && allResults.length < limit) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // 随机 jitter 避免多频道并行时同步突发被 t.me 限流
+      const jitter = 50 + Math.floor(Math.random() * 100);
+      await new Promise((resolve) => setTimeout(resolve, jitter));
     }
   }
 
@@ -83,7 +85,8 @@ export function parseChannelPage(
   $: cheerio.CheerioAPI,
   channel: string,
   keyword: string,
-  limit: number
+  limit: number,
+  startIndex = 0
 ): SearchResult[] {
   const results: SearchResult[] = [];
 
@@ -132,13 +135,17 @@ export function parseChannelPage(
 
     const links: { type: string; url: string; password: string }[] = [];
     const seenUrls = new Set<string>();
-    const urlPattern = /https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+/g;
+    // 匹配 http(s) 链接和 magnet 链接（磁力链接无 hostname，需单独匹配）
+    const urlPattern = /https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+|magnet:\?[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+/g;
     const passwdPattern = /(?:提取码|密码|pwd|pass)[:：\s]*([a-zA-Z0-9]{3,6})/i;
 
     // 解析原始 URL 为 { url, type }；展开 r.jina.ai 代理，以及 t.me 分享/跳转链接
     // 里嵌套的真实网盘地址（如 https://t.me/share/url?url=https://pan.quark.cn/...）。
     // 否则宽正则会把整条 t.me 链接匹配出来，真实网盘地址被当成 t.me 丢弃。
     const resolveUrl = (raw: string): { url: string; type: string } | null => {
+      // magnet 链接无 hostname，直接按协议识别
+      if (raw.startsWith("magnet:")) return { url: raw, type: "magnet" };
+
       const deproxied = deproxyUrl(raw);
       let parsed: URL;
       try {
@@ -220,7 +227,7 @@ export function parseChannelPage(
 
     results.push({
       message_id: postId,
-      unique_id: `tg-${channel}-${postId || i}`,
+      unique_id: `tg-${channel}-${postId || startIndex + i}`,
       channel,
       datetime: dateTitle ? new Date(dateTitle).toISOString() : "",
       title,

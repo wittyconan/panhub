@@ -191,6 +191,9 @@ watch(
 );
 
 function saveTemp() {
+  // 运行时 clamp：HTML max 属性不阻止手动输入超出范围的值
+  inner.value.concurrency = Math.min(16, Math.max(1, Math.round(inner.value.concurrency) || 3));
+  inner.value.pluginTimeoutMs = Math.min(60000, Math.max(1000, Math.round(inner.value.pluginTimeoutMs) || 10000));
   emit("update:modelValue", inner.value);
   emit("save");
 }

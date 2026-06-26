@@ -34,6 +34,6 @@ export function verifyAuthCookie(event: H3Event, secret: string): boolean {
 
 export function setAuthCookie(event: H3Event, token: string): void {
   setHeader(event, "Set-Cookie", [
-    `${COOKIE_NAME}=${token}; Path=${COOKIE_PATH}; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax`,
+    `${COOKIE_NAME}=${token}; Path=${COOKIE_PATH}; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`,
   ].join(""));
 }

@@ -45,7 +45,9 @@ const visible = computed(() => props.show);
 watch(visible, (v) => {
   if (v) {
     password.value = "";
-    nextTick(() => inputRef.value?.focus());
+    // Teleport + Transition 下 nextTick 可能在 DOM 挂载前执行，
+    // 用 requestAnimationFrame 确保 focus 在 Transition enter 后执行
+    nextTick(() => requestAnimationFrame(() => inputRef.value?.focus()));
   }
 });
 

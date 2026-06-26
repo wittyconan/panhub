@@ -1,7 +1,5 @@
 <template>
-  <div v-if="!hasAnyData" class="hidden"></div>
-
-  <div v-else class="douban-section">
+  <div class="douban-section">
     <!-- 分类 Tabs - 始终可点击 -->
     <nav class="category-nav" role="tablist">
       <button
@@ -13,8 +11,7 @@
         role="tab"
         @click="selectCategory(cat.id)"
       >
-        <span class="tab-label">{{ cat.label }}</span>
-        <span class="tab-type">{{ cat.type || "榜单" }}</span>
+        <span class="tab-label">{{ cat.type || cat.label }}</span>
       </button>
     </nav>
 
@@ -73,7 +70,7 @@
                 <div v-else class="cover-placeholder">🎬</div>
               </div>
               <div class="card-info">
-                <span class="card-title">{{ extractTerm(item.title) }}</span>
+                <span class="card-title">{{ item.title }}</span>
                 <span v-if="item.desc" class="card-desc">{{ item.desc }}</span>
               </div>
             </button>
@@ -101,6 +98,12 @@
         <div v-else-if="items.length > 0" class="end-message">
           — 已经到底了 —
         </div>
+      </div>
+
+      <!-- 空状态 -->
+      <div v-if="!loading && items.length === 0" class="empty-state">
+        <span class="empty-icon">📭</span>
+        <span class="empty-text">暂无数据</span>
       </div>
     </div>
   </div>
@@ -134,13 +137,24 @@ const currentPage = ref(1);
 const loadObserver = ref<IntersectionObserver | null>(null);
 const loadTriggerRef = ref<HTMLElement | null>(null);
 
-// 所有可用的分类配置
+// 防止快速切换分类时旧响应覆盖新数据
+let fetchSeq = 0;
+
+// 所有可用的分类配置（与 config/doubanHot.ts 同步）
 const availableCategories = computed(() => {
   return [
     { id: "douban-top250", label: "电影", type: "Top250" },
-    { id: "douban-movie", label: "电影", type: "新片榜" },
-    { id: "douban-weekly", label: "电影", type: "口碑榜" },
-    { id: "douban-us-box", label: "电影", type: "北美票房" },
+    { id: "douban-drama", label: "电影", type: "剧情" },
+    { id: "douban-comedy", label: "电影", type: "喜剧" },
+    { id: "douban-action", label: "电影", type: "动作" },
+    { id: "douban-romance", label: "电影", type: "爱情" },
+    { id: "douban-scifi", label: "电影", type: "科幻" },
+    { id: "douban-animation", label: "电影", type: "动画" },
+    { id: "douban-mystery", label: "电影", type: "悬疑" },
+    { id: "douban-crime", label: "电影", type: "犯罪" },
+    { id: "douban-war", label: "电影", type: "战争" },
+    { id: "douban-documentary", label: "纪录片", type: "纪录片" },
+    { id: "douban-tv", label: "电视剧", type: "电视剧" },
   ];
 });
 
@@ -165,6 +179,7 @@ function proxyCover(url: string): string {
 }
 
 async function fetchCategoryData(categoryId: string, page: number, append = false) {
+  const mySeq = ++fetchSeq;
   if (page === 1) {
     loading.value = true;
   } else {
@@ -174,6 +189,9 @@ async function fetchCategoryData(categoryId: string, page: number, append = fals
   try {
     const response = await fetch(`/api/douban-hot?category=${categoryId}&page=${page}&limit=25`);
     const data = await response.json();
+
+    // 如果在请求期间用户切换了分类，丢弃过期响应
+    if (mySeq !== fetchSeq) return;
 
     if (data.code === 0 && data.data) {
       const newItems = data.data.items || [];
@@ -611,6 +629,22 @@ defineExpose({ init, refresh });
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.05em;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 0;
+}
+.empty-icon {
+  font-size: 28px;
+  opacity: 0.6;
+}
+.empty-text {
+  color: var(--text-tertiary, #9ca3af);
+  font-size: 14px;
 }
 
 /* 过渡动画 */

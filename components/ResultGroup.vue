@@ -22,7 +22,7 @@
 
     <!-- 资源列表 -->
     <ul class="resource-list">
-      <li v-for="(r, idx) in visibleItems" :key="idx" class="resource-item">
+      <li v-for="r in visibleItems" :key="r.url" class="resource-item">
         <div class="resource-content">
           <a
             class="resource-link"

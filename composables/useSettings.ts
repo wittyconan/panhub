@@ -24,6 +24,9 @@ export interface UseSettingsReturn {
   onClearAllTg: () => void;
 }
 
+// 模块级守卫：useSettings() 在多个组件中调用，loadSettings() 只需执行一次
+let _settingsInitialized = false;
+
 function getDefaultSettings(defaultTgChannels: string[]): UserSettings {
   return {
     enabledTgChannels: [...defaultTgChannels],
@@ -143,7 +146,8 @@ export function useSettings(): UseSettingsReturn {
     saveSettings();
   }
 
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !_settingsInitialized) {
+    _settingsInitialized = true;
     loadSettings();
   }
 

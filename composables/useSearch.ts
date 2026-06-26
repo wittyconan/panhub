@@ -109,7 +109,7 @@ export function useSearch() {
 
     const startFrom = pausedAtTaskIndex;
     try {
-      await performParallelSearch(options, searchSeq, startFrom);
+      await performParallelSearch(options, searchSeq, startFrom, state.value.merged);
     } catch (error) {
       // 忽略错误
     } finally {
@@ -162,10 +162,12 @@ export function useSearch() {
   }
 
   // 并发搜索 - 每个源独立请求，支持从 startFromTaskIndex 断点续跑
+  // initialMerged: continueSearch 时传入暂停前已累积的结果，避免覆盖
   async function performParallelSearch(
     options: SearchOptions,
     mySeq: number,
-    startFromTaskIndex = 0
+    startFromTaskIndex = 0,
+    initialMerged?: MergedLinks
   ): Promise<void> {
     const { apiBase, keyword, settings } = options;
     const conc = Math.min(16, Math.max(1, Number(settings.concurrency || 3)));
@@ -226,7 +228,7 @@ export function useSearch() {
     const limit = pLimit(conc);
 
     // 并发执行所有任务，哪个先返回就立即合并展示，不等待其它
-    let currentMerged: MergedLinks = {};
+    let currentMerged: MergedLinks = initialMerged ? { ...initialMerged } : {};
 
     const tasksToSchedule =
       startFromTaskIndex > 0 ? searchTasks.slice(startFromTaskIndex) : searchTasks;
