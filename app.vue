@@ -97,13 +97,21 @@
       </nav>
     </header>
 
-    <!-- 链接检测助手安装提示条（全宽细条，导航栏下方） -->
+    <!-- 链接检测助手安装/升级提示条（全宽细条，导航栏下方） -->
     <div v-if="showCheckerTip" class="checker-bar">
       <span class="checker-bar__text">
-        💡 安装 <a href="/panhub-link-checker.user.js" class="checker-bar__link">链接检测助手</a>
-        油猴脚本，自动标记失效链接
-        <span class="checker-bar__sep">·</span>
-        需要 <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" class="checker-bar__link">Tampermonkey</a> 扩展
+        <template v-if="checkerTipType === 'upgrade'">
+          🔔 <a href="/panhub-link-checker.user.js" class="checker-bar__link">链接检测助手</a>
+          有新版本（v{{ LATEST_CHECKER_VERSION }}），点击安装更新
+          <span class="checker-bar__sep">·</span>
+          <span class="checker-bar__ver">当前 v{{ installedCheckerVersion }}</span>
+        </template>
+        <template v-else>
+          💡 安装 <a href="/panhub-link-checker.user.js" class="checker-bar__link">链接检测助手</a>
+          油猴脚本，自动标记失效链接
+          <span class="checker-bar__sep">·</span>
+          需要 <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" class="checker-bar__link">Tampermonkey</a> 扩展
+        </template>
       </span>
       <button class="checker-bar__close" @click="dismissCheckerTip" aria-label="关闭">✕</button>
     </div>
@@ -229,20 +237,50 @@ watch(() => settings.value, (newVal, oldVal) => {
   }
 }, { deep: true });
 
-// 链接检测助手安装提示条
+// 链接检测助手安装/升级提示条
 const CHECKER_TIP_KEY = "panhub:checker-tip-dismissed";
+const CHECKER_VER_KEY = "panhub:checker-last-version";
+const LATEST_CHECKER_VERSION = "2.0.0";
 const showCheckerTip = ref(false);
+const checkerTipType = ref<"install" | "upgrade">("install");
+const installedCheckerVersion = ref("");
+
 function checkCheckerTip() {
-  if ((window as any).__panhub_linkCheckerReady) return;
+  const win = window as any;
   try {
+    // 已安装且版本匹配 → 无提示，记录版本
+    if (win.__panhub_linkCheckerReady && win.__panhub_linkCheckerVersion === LATEST_CHECKER_VERSION) {
+      localStorage.setItem(CHECKER_VER_KEY, LATEST_CHECKER_VERSION);
+      return;
+    }
+    // 已安装但版本过旧 → 升级提示（用户已关闭此版本则不再提示）
+    if (win.__panhub_linkCheckerReady && win.__panhub_linkCheckerVersion) {
+      const dismissedVer = localStorage.getItem(CHECKER_VER_KEY);
+      if (dismissedVer === win.__panhub_linkCheckerVersion) return;
+      installedCheckerVersion.value = win.__panhub_linkCheckerVersion;
+      checkerTipType.value = "upgrade";
+      showCheckerTip.value = true;
+      return;
+    }
+    // 未安装 → 安装提示（用户之前关闭过则不显示）
     if (localStorage.getItem(CHECKER_TIP_KEY)) return;
-  } catch {}
-  showCheckerTip.value = true;
+    checkerTipType.value = "install";
+    showCheckerTip.value = true;
+  } catch {
+    showCheckerTip.value = true;
+  }
 }
 function dismissCheckerTip() {
   showCheckerTip.value = false;
   try {
-    localStorage.setItem(CHECKER_TIP_KEY, "1");
+    // 安装提示：记录关闭状态
+    if (checkerTipType.value === "install") {
+      localStorage.setItem(CHECKER_TIP_KEY, "1");
+    }
+    // 升级提示：记录已知版本（下次不再提示同一版本）
+    if (checkerTipType.value === "upgrade") {
+      localStorage.setItem(CHECKER_VER_KEY, installedCheckerVersion.value);
+    }
   } catch {}
 }
 
@@ -670,6 +708,10 @@ function onDocumentClick(e: MouseEvent) {
 .checker-bar__sep {
   margin: 0 4px;
   opacity: 0.4;
+}
+.checker-bar__ver {
+  opacity: 0.6;
+  font-size: 0.9em;
 }
 .checker-bar__close {
   flex-shrink: 0;

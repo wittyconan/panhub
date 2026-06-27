@@ -29,14 +29,15 @@
     "deploy:cf": "wrangler deploy"
   },
   "dependencies": {
-    "TagCloud": "^2.5.0",
     "cheerio": "^1.0.0",
     "nuxt": "^4.0.3",
     "ofetch": "^1.4.1",
     "p-limit": "^7.2.0",
     "sql.js": "^1.14.1",
+    "TagCloud": "^2.5.0",
     "vue": "^3.5.18",
-    "vue-router": "^4.5.1"
+    "vue-router": "^4.5.1",
+    "wx-auth-sdk": "^1.1.4"
   },
   "devDependencies": {
     "@types/sql.js": "^1.4.11",
