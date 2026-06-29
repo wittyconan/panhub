@@ -3,12 +3,10 @@
  * - 前 3 次搜索免费，第 4 次起弹出认证提示
  * - 已认证用户（cookie 存在）永不弹窗
  * - 用户关闭弹窗后搜索正常进行，下次搜索再弹
- *
- * 临时禁用：图片访问问题
  */
 
-// import { WxAuth } from "wx-auth-sdk";
-// import "wx-auth-sdk/dist/style.css";
+import { WxAuth } from "wx-auth-sdk";
+import "wx-auth-sdk/dist/style.css";
 
 const SEARCH_COUNT_KEY = "wx_auth_search_count";
 const FREE_SEARCHES = 3;
@@ -21,9 +19,57 @@ export function useWxAuth() {
   onBeforeMount(() => {
     if (typeof window === "undefined") return;
 
-    // 临时禁用：图片访问问题
-    // 直接标记就绪，跳过所有认证逻辑
-    isReady.value = true;
+    // 临时保存原始 showAuthModal，init() 会触发 autoCheck() 进而弹窗
+    const origShow = WxAuth.showAuthModal.bind(WxAuth);
+    (WxAuth as any).showAuthModal = () => {}; // 空函数阻止 autoCheck 弹窗
+
+    // 使用 init 设置 SDK 内部状态（siteId 已可省略，SDK 自动从 referrer/域名获取）
+    WxAuth.init({
+      apiBase: "https://wx-auth.shenzjd.com",
+      onVerified: (user: any) => {
+        console.log("[wx-auth] 认证成功", user);
+        isVerified.value = true;
+      },
+      onError: (error: any) => {
+        console.error("[wx-auth] 认证失败", error);
+      },
+      onClose: () => {
+        console.log("[wx-auth] 弹窗关闭");
+      },
+    });
+
+    // 恢复原始 showAuthModal
+    (WxAuth as any).showAuthModal = origShow;
+
+    // 检查是否已有 cookie（已认证过）
+    const hasCookie = document.cookie
+      .split(";")
+      .some((c) => c.trim().startsWith("wxauth-openid="));
+
+    if (hasCookie) {
+      // 静默验证 cookie 是否仍然有效
+      fetch(
+        `https://wx-auth.shenzjd.com/api/auth/check?openid=${
+          document.cookie
+            .split(";")
+            .find((c) => c.trim().startsWith("wxauth-openid="))
+            ?.split("=")[1]
+            ?.trim()
+        }`
+      )
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.authenticated) {
+            isVerified.value = true;
+          }
+          isReady.value = true;
+        })
+        .catch(() => {
+          isReady.value = true;
+        });
+    } else {
+      isReady.value = true;
+    }
   });
 
   /** 搜索计数 +1，返回是否需要弹出认证 */
@@ -42,10 +88,23 @@ export function useWxAuth() {
     return false;
   }
 
-  /** 显示认证弹窗 - 临时禁用 */
+  /** 显示认证弹窗 */
   function showAuthModal() {
-    // 临时禁用：图片访问问题
-    // console.log("[wx-auth] 弹窗功能已禁用");
+    // 确保 qrcode 已获取
+    if (!(WxAuth as any).qrcodeUrl) {
+      fetch(`https://wx-auth.shenzjd.com/api/sdk/config`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.qrcodeUrl) (WxAuth as any).qrcodeUrl = data.qrcodeUrl;
+          if (data.wechatName) (WxAuth as any).wechatName = data.wechatName;
+          WxAuth.showAuthModal();
+        })
+        .catch(() => {
+          WxAuth.showAuthModal();
+        });
+    } else {
+      WxAuth.showAuthModal();
+    }
   }
 
   return {

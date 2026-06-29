@@ -303,8 +303,8 @@ async function onSearch() {
     requestUnlock(doSearch);
     return;
   }
-  // 微信公众号认证（前3次免费，之后弹窗，不阻塞搜索）- 临时禁用
-  // checkSearchAuth();
+  // 微信公众号认证（前3次免费，之后弹窗，不阻塞搜索）
+  checkSearchAuth();
   await doSearch();
 }
 
