@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm' # 如使用 pnpm 可换为 pnpm/action-setup
 
       - name: Install dependencies
