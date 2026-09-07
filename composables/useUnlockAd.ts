@@ -83,3 +83,18 @@ export function maybeShowUnlockAd(): void {
       console.warn("[floating-unlock] 自愿支持弹窗不可用，跳过", e);
     });
 }
+/**
+ * 兼容旧代码调用，防止报错 500: useUnlockAd is not defined
+ */
+export function useUnlockAd() {
+  return {
+    maybeShowUnlockAd,
+    resolveFloatingUnlock,
+    // 兼容旧版可能调用的方法名，全部做成空操作或直接 resolve
+    unlock: () => Promise.resolve(),
+    show: () => maybeShowUnlockAd(),
+  };
+}
+
+// 默认导出兜底
+export default useUnlockAd;
