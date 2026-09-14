@@ -1,21 +1,15 @@
 name: Deploy to GitHub Pages
 
-# 纯静态前台：push 到 main 自动构建并发布到 GitHub Pages。
-# 构建产物是相对路径（vite base: "./"），因此项目站点部署在
-# https://<用户>.github.io/<仓库名>/ 子路径下也能正常加载资源。
 on:
   push:
     branches: [main]
-  # 允许手动触发（紧急重发 / 首次发布）
   workflow_dispatch:
 
-# GitHub Pages 发布所需的最小权限（官方推荐配置）
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 同一时间只跑一个发布任务；不打断正在进行的发布
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -30,7 +24,7 @@ jobs:
       - name: 安装 Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: 安装依赖
@@ -39,18 +33,11 @@ jobs:
       - name: 构建静态产物
         run: npm run build
 
-      # GitHub Pages 默认会走 Jekyll 处理，生成 .nojekyll 跳过，
-      # 避免以 _ 开头的资源文件被忽略
       - name: 禁用 Jekyll
         run: touch dist/.nojekyll
 
-      # enablement: true 会在 Pages 尚未启用时尝试自动开启（Source 设为 Actions），
-      # 免去手动去 Settings → Pages 配置。若因仓库权限/分支保护导致失败，
-      # 手动去 Settings → Pages 把 Source 选为 "GitHub Actions" 即可。
       - name: 配置 Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: 上传产物
         uses: actions/upload-pages-artifact@v3
